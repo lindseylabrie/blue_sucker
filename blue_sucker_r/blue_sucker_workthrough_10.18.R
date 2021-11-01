@@ -5,7 +5,7 @@ library(brms)
 library(janitor)
 library(readr)
 
-blue_sucker_2021_data <- read_csv("~/Desktop/blue_sucker/data/blue_sucker_2021_data.csv")%>% 
+blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>% 
   clean_names()%>% 
   filter(!is.na(lab_sex)) %>% 
   filter(!is.na(gonad_weight_g)) %>% 
