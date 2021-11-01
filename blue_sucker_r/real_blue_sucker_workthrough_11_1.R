@@ -81,9 +81,9 @@ prior_and_x %>%
 ## Use only length as a predictor for egg count.
 ## Use only weight as a predictor for egg count.
 ## See if total length would be a good predictor of male gonad weight.
-## See if length weight be a good predictor of male gonad weight.
-## See if length be a predictor of GSI (Gonadosomatic Index)?: GSI = (gonad weight/wet weight)*100
-## Could total weight be a predictor of GSI? 
+## See if total weight would be a good predictor of male gonad weight.
+## See if length would be a predictor of GSI (Gonadosomatic Index)?: GSI = (gonad weight/wet weight)*100
+## See if total weight be a predictor of GSI? 
 ###GSI could be used for both males and females.
 
 get_prior(egg_total_simplified ~ length_s + weight_s + length_s*weight_s, 
@@ -103,6 +103,132 @@ bsr_brm <- brm(combined_egg_total ~ length_s + weight_s + length_s*weight_s,
 
 bsr_brm
 plot(conditional_effects(bsr_brm), points = T)
+
+################### more graphs #########################
+
+####### Use only weight as a predictor for egg count #######
+
+N = 1000  # number of simulations (change as needed)
+
+# simulate priors
+priors1 <- tibble(a = rnorm(N, 11.5, 0.5),
+                 bw = rnorm(N, 0, 0.5),
+                 phi = rexp(N, 0.001),
+                 sim = 1:N)
+
+prior_and_x_weight <- priors1 %>% expand_grid(weight_s = weight_s) %>%    # combine priors and x's
+  # left_join(d %>% distinct(length_s, weight_s)) %>% 
+  distinct(sim, weight_s, a, bw, phi) %>% 
+  mutate(mu = exp(a + bw*weight_s),                              # simulate regressions
+         y = rnbinom(nrow(.), size = phi, mu = mu))
+
+# plot
+prior_and_x_weight %>% 
+  ggplot(aes(x = weight_s, y = mu, group = sim)) + 
+  geom_line(alpha=0.1) +
+  geom_point(aes(y = y)) +
+  labs(y = "sim")+
+  scale_y_log10(labels = comma) +
+  geom_hline(yintercept = c(250000,
+                            50000,
+                            100000), color = "red") +
+  NULL
+
+get_prior(combined_egg_total ~ weight_s, 
+          data = d,
+          family = negbinomial(link="log"))
+
+bsr_brm_weight <- brm(combined_egg_total ~ weight_s, 
+               data = d,
+               family = negbinomial(link="log"),
+               prior = c(prior(normal(11.5, 0.5), class = "Intercept"),
+                         prior(normal(0, 0.5), class = "b", coef="weight_s"),
+                         prior(exponential(0.001), class = "shape")), 
+               cores = 1, chains = 1, iter = 1000,
+               file = "models/bsr_brm_weight.rds",
+               file_refit = "on_change",
+               sample_prior = "yes")
+
+plot(conditional_effects(bsr_brm_weight), points = T)
+
+
+####### Use only length as a predictor for egg count ########
+
+N = 1000  # number of simulations (change as needed)
+
+# simulate priors
+priors2 <- tibble(a = rnorm(N, 11.5, 0.3),
+                  bl = rnorm(N, 0, 0.4),
+                  phi = rexp(N, 0.001),
+                  sim = 1:N)
+
+prior_and_x_length <- priors2 %>% expand_grid(length_s = length_s) %>%    # combine priors and x's
+  # left_join(d %>% distinct(length_s, weight_s)) %>% 
+  distinct(sim, length_s, a, bl, phi) %>% 
+  mutate(mu = exp(a + bl*length_s),                              # simulate regressions
+         y = rnbinom(nrow(.), size = phi, mu = mu))
+
+# plot
+prior_and_x_length %>% 
+  ggplot(aes(x = length_s, y = mu, group = sim)) + 
+  geom_line(alpha=0.1) +
+  geom_point(aes(y = y)) +
+  labs(y = "sim")+
+  scale_y_log10(labels = comma) +
+  geom_hline(yintercept = c(250000,
+                            50000,
+                            100000), color = "red") +
+  NULL
+
+bsr_brm_length <- brm(combined_egg_total ~ length_s, 
+                      data = d,
+                      family = negbinomial(link="log"),
+                      prior = c(prior(normal(11.5, 0.3), class = "Intercept"),
+                                prior(normal(0, 0.4), class = "b", coef="length_s"),
+                                prior(exponential(0.001), class = "shape")), 
+                      cores = 1, chains = 1, iter = 1000,
+                      file = "models/bsr_brm_length.rds",
+                      file_refit = "on_change",
+                      sample_prior = "yes")
+
+plot(conditional_effects(bsr_brm_length), points = T)
+
+
+### Danielle's model ###
+
+bsr_brm_length_danielle <- brm(combined_egg_total ~ length_s, 
+                      data = d,
+                      family = Gamma(link="log"),
+                      prior = c(prior(normal(12, 0.2), class = "Intercept"),
+                                prior(normal(0, 0.1), class = "b", coef="length_s"),
+                                prior(exponential(0.0005), class = "shape")), 
+                      cores = 1, chains = 1, iter = 1000,
+                      file = "models/bsr_brm_length_danielle.rds",
+                      file_refit = "on_change",
+                      sample_prior = "yes")
+
+plot(conditional_effects(bsr_brm_length_danielle), points = T)
+
+
+### Lauren's model ###
+
+bsr_brm3 <- brm(egg_total_simplified ~ length_s + weight_s + length_s*weight_s, 
+                 data = d,
+                 family = Gamma(link="log"),
+                 prior = c(prior(normal(10, 5), class = "Intercept"),
+                           #prior(normal(0, 0.1), class = "b", coef="length_s"),
+                           #prior(normal(0, 0.1), class = "b", coef="length_s:weight_s"),
+                           prior(normal(20, 15), class = "b", coef="weight_s"),#is this what i do when i want to use different priors for different betas?
+                           prior(exponential(0.001), class = "shape")), 
+                 cores = 4, chains = 2, iter = 1000,
+                 sample_prior = "yes")
+plot(gaus_brm3)
+gaus_brm3
+plot(conditional_effects(gaus_brm3), points = T)
+
+
+
+
 
 # length and weight are highly correlated, which is why the length model looks so wonky.
 
