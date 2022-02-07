@@ -145,32 +145,45 @@ length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2) + (1|fi
                            file_refit = "on_change")
 
 plot(conditional_effects(length_bsr_negbinom, re_formula = NULL), points = T)
-                
+
+length_bsr_negbinom
+plot(conditional_effects(length_bsr_negbinom), points = T)
+
+pp_check(length_bsr_negbinom)
+pp_check(length_bsr_negbinom, type = "hist")
+
 # saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
 
 as_draws_df(length_bsr_negbinom)
 
 ### Trying with weight_s
 
-weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s, 
+weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s + I(weight_s^2) + (1|fish_id), 
                            data = d,
                            family = negbinomial(link="log"),
                            prior = c(prior(normal(13, 5), class = "Intercept"),
                                      prior(normal(0, 1), class = "b", coef="weight_s")),
-                           cores = 1, chains = 1, iter = 1000,
+                           cores = 1, chains = 4, iter = 1000,
                            sample_prior = "yes",
                            file="models/weight_bsr_negbinom.rds",
                            file_refit = "on_change")
 weight_bsr_negbinom
 plot(conditional_effects(weight_bsr_negbinom), points = T)
 
+pp_check(weight_bsr_negbinom)
 
-saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
 
+# GSI gaus?
+gsi_length_gaus <- brm(gsi ~ length_s + length_s*lab_sex + I(length_s^2)+ (1|fish_id), 
+                   data = d,
+                   family = gaussian(),
+                   cores = 1, chains = 1, iter = 5000,
+                   sample_prior = "yes")
+# ,
+#                    file="models/gsi_length_gaus.rds",
+#                    file_refit = "on_change")
 
-length_bsr_negbinom
-plot(conditional_effects(length_bsr_negbinom), points = T)
-
+plot(conditional_effects(gsi_length_gaus), points = T)
 
 
 # #simplified egg count
