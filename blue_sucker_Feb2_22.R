@@ -4,6 +4,7 @@ library(rethinking)
 library(brms)
 library(janitor)
 library(readr)
+library(tidybayes)
 
 blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>% 
   clean_names()%>% 
@@ -28,34 +29,41 @@ blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>%
 
 d <- blue_sucker_2021_data #simplifying what it's called.
   
-d %>% 
+LengthsWeights <- d %>% 
 ggplot(aes(x=length_mm, y=weight_g, color=lab_sex)) +
   geom_point() +
   geom_smooth()+
-  labs(title="Lengths and Weights by Sex",
+  labs(title="Lengths and Weights by Sex, 2021",
        x="Length (mm)",
        y= "Wet Weight (g)")
 
-?legend
-#can't figure out how to change the legend text
+ggsave(LengthsWeights, file = "plots/LengthsWeighs.png", dpi=750,  width = 5, height = 3,
+       units = "in")
 
-d %>% 
+
+WeightGSI <- d %>% 
   ggplot(aes(x=weight_g, y=gsi, color=lab_sex)) +
   geom_point() +
   geom_smooth()+
-  labs(title="GSI by Sex and Weight (g)",
+  labs(title="GSI by Sex and Weight (g), 2021",
        x="Wet Weight (g)",
        y= "GSI")
 
-d %>% 
+ggsave(WeightGSI, file = "plots/WeightGSI.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+LengthGSI <- d %>% 
   ggplot(aes(x=length_mm, y=gsi, color=lab_sex)) +
   geom_point() +
   geom_smooth()+
-  labs(title="GSI by Sex and Length (mm)",
+  labs(title="GSI by Sex and Length (mm), 2021",
        x="Length (mm)",
        y= "GSI")
 
-d %>% 
+ggsave(LengthGSI, file = "plots/LengthGSI.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+StandardLengthGSI <- d %>% 
   ggplot(aes(x=length_s, y=gsi, color=lab_sex)) +
   geom_point() +
   geom_smooth()+
@@ -64,13 +72,20 @@ d %>%
        y= "GSI")
 #same as the regular length plot
 
-d %>% 
+ggsave(StandardLengthGSI, file = "plots/StandardLengthGSI.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+StandardLengthEggTotal <- d %>% 
   ggplot(aes(x=length_s, y=combined_egg_total)) +
   geom_point() +
   geom_smooth()+
   labs(title="Lengths and estimated total egg counts",
        x="Length (standardized)",
        y= "Estimated egg total")
+
+ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
 
 # length as predictor of gsi
 get_prior(gsi ~ length_s + length_s*lab_sex + (1|fish_id), 
@@ -85,7 +100,7 @@ length_gaus <- brm(gsi ~ length_s + length_s*lab_sex + (1|fish_id),
                            file="models/4_chain_length_gaus.rds",
                            file_refit = "on_change")
 
-plot(length_gaus)
+
 plot(conditional_effects(length_gaus), points = T)
 
 pp_check(length_gaus)
@@ -152,7 +167,7 @@ plot(conditional_effects(length_bsr_negbinom), points = T)
 pp_check(length_bsr_negbinom)
 pp_check(length_bsr_negbinom, type = "hist")
 
-# saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
+saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
 
 as_draws_df(length_bsr_negbinom)
 
@@ -168,13 +183,54 @@ weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s + I(weight_s^2) + (1|fi
                            file="models/weight_bsr_negbinom.rds",
                            file_refit = "on_change")
 weight_bsr_negbinom
-plot(conditional_effects(weight_bsr_negbinom), points = T)
+plot(conditional_effects(weight_bsr_negbinom, re_formula=NULL), points = T)
 
 pp_check(weight_bsr_negbinom)
 
+cond_effect_weight <- conditional_effects(weight_bsr_negbinom)
+cond_effect_weight$weight_s
+
+cond_effect_weight$weight_s %>% 
+  ggplot(aes(x=weight_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = weight_bsr_negbinom$data, aes(x=weight_s, y=combined_egg_total))+
+  theme_default()
+
+cond_data_weight <- weight_bsr_negbinom$data %>% distinct(weight_s, combined_egg_total)
+
+posts_weight <- add_epred_draws(weight_bsr_negbinom, newdata= weight_bsr_negbinom$data %>% 
+                                  distinct(weight_s, fish_id), re_formula = NULL)
+
+d_weight <- d %>% distinct(weight_g, weight_s)
+
+PosteriorWeight <- posts_weight %>%
+  group_by(weight_s) %>% 
+  left_join(d_weight) %>% 
+  median_qi(.epred) %>% 
+  ggplot(aes(x = weight_s, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Fecundity Prediction",
+       x="Weight (standardized)",
+       y="Predicted total egg count")
+
+# try figuring out how to fix it so it's not so bumpy
+
+ggsave(PosteriorAll, file = "plots/PosteriorAll.png", dpi = 750, width = 7, height = 5,
+       units = "in")
+
+
+
+
+
+
+
 
 # GSI gaus?
-gsi_length_gaus <- brm(gsi ~ length_s + length_s*lab_sex + I(length_s^2)+ (1|fish_id), 
+gsi_length_negbinom <- brm(gsi ~ length_s + length_s*lab_sex + I(length_s^2)+ (1|fish_id), 
                    data = d,
                    family = gaussian(),
                    cores = 1, chains = 1, iter = 5000,
@@ -184,6 +240,25 @@ gsi_length_gaus <- brm(gsi ~ length_s + length_s*lab_sex + I(length_s^2)+ (1|fis
 #                    file_refit = "on_change")
 
 plot(conditional_effects(gsi_length_gaus), points = T)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # #simplified egg count
