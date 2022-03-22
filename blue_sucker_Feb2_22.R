@@ -130,19 +130,9 @@ bayes_R2(weight_gaus)
 # What is fecundity?
 ## Fecundity is the number of eggs a female fish will lay in a spawning season.
 
-# What I'm trying to do in this scenario: use length and weight as predictors for egg count (fecundity)
+###### 6 DIFFERENT MODELS ######
 
-# What else could be done? 
-
-## Use only length as a predictor for egg count.
-## Use only weight as a predictor for egg count.
-## See if total length would be a good predictor of male gonad weight.
-## See if length weight be a good predictor of male gonad weight.
-## See if length be a predictor of GSI (Gonadosomatic Index)?: GSI = (gonad weight/wet weight)*100
-## Could total weight be a predictor of GSI? 
-###GSI could be used for both males and females.
-
-# Using length as a predictor
+######## TOTAL LENGTH as predictor of TOTAL EGG COUNT ###########
 
 get_prior(egg_total_simplified ~ length_s + I(length_s^2) + (1|fish_id), 
            data = d,
@@ -171,7 +161,69 @@ saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
 
 as_draws_df(length_bsr_negbinom)
 
-### Trying with weight_s
+cond_effect_length <- conditional_effects(length_bsr_negbinom)
+cond_effect_length$length_s
+
+cond_effect_length$lenth_s %>% 
+  ggplot(aes(x=length_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = length_bsr_negbinom$data, aes(x=length_s, y=combined_egg_total))+
+  theme_default()
+
+cond_data_length <- length_bsr_negbinom$data %>% distinct(length_s, combined_egg_total)
+
+posts_length <- add_epred_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
+                                  distinct(length_s) , re_formula = NA)
+
+
+posts_length_all <- add_predicted_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
+                                          distinct(length_s) , re_formula = NA)
+
+d_length <- d %>% distinct(length_mm, length_s)
+
+PosteriorLength <- posts_length_all %>%
+  group_by(length_s) %>% 
+  left_join(d_length) %>% 
+  median_qi(.prediction) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .prediction)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Fecundity Prediction",
+       subtitle="Large grey bar incorporates the variation in individuals",
+       x="Length (mm)",
+       y="Predicted total egg count")
+
+ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
+       units = "in")
+
+# This model incorporates all individuals, and not JUST the mean. We would not be surprised
+# to see any range of egg counts for an individual of 700 mm length (for example), to be between
+# ~70,000 and ~130,000 eggs. For the mean variation:
+
+PosteriorLengthMean <- posts_length %>%
+  group_by(length_s) %>% 
+  left_join(d_length) %>% 
+  median_qi(.epred) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Mean Fecundity Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean egg count",
+       x="Length (mm)",
+       y="Predicted total egg count")
+
+ggsave(PosteriorLengthMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
+       units = "in")
+
+######### WET WEIGHT as predictor of TOTAL EGG COUNT ########## 
 
 weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s + I(weight_s^2) + (1|fish_id), 
                            data = d,
@@ -199,31 +251,70 @@ cond_effect_weight$weight_s %>%
 cond_data_weight <- weight_bsr_negbinom$data %>% distinct(weight_s, combined_egg_total)
 
 posts_weight <- add_epred_draws(weight_bsr_negbinom, newdata= weight_bsr_negbinom$data %>% 
-                                  distinct(weight_s, fish_id) , re_formula = NULL)
+                                  distinct(weight_s) , re_formula = NA)
+
+
+posts_weight_all <- add_predicted_draws(weight_bsr_negbinom, newdata= weight_bsr_negbinom$data %>% 
+                  distinct(weight_s) , re_formula = NA)
 
 d_weight <- d %>% distinct(weight_g, weight_s)
 
-PosteriorWeight <- posts_weight %>%
+PosteriorWeight <- posts_weight_all %>%
   group_by(weight_s) %>% 
   left_join(d_weight) %>% 
-  median_qi(.epred) %>% 
-  ggplot(aes(x = weight_s, y = .epred)) +
+  median_qi(.prediction) %>% 
+  mutate(weight_g = (weight_s*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x = weight_g, y = .prediction)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
   geom_point(data = d, 
              aes(y = combined_egg_total)) +
   labs(title= "Blue Sucker Fecundity Prediction",
-       x="Weight (standardized)",
+       subtitle="Large grey bar incorporates the variation in individuals",
+       x="Weight (g)",
        y="Predicted total egg count")
 
-# try figuring out how to fix it so it's not so bumpy
+ggsave(PosteriorWeight, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
+       units = "in")
 
-ggsave(PosteriorAll, file = "plots/PosteriorAll.png", dpi = 750, width = 7, height = 5,
+# This model incorporates all individuals, and not JUST the mean. We would not be surprised
+# to see any range of egg counts for an individual weighing (for example) 3000 g, to be between
+# ~75,000 and ~130,000 eggs. For the mean variation:
+
+PosteriorWeightMean <- posts_weight %>%
+  group_by(weight_s) %>% 
+  left_join(d_weight) %>% 
+  median_qi(.epred) %>% 
+  mutate(weight_g = (weight_s*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x = weight_g, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Mean Fecundity Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean egg count",
+       x="Weight (g)",
+       y="Predicted total egg count")
+
+ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
        units = "in")
 
 
+######## TOTAL LENGTH as predictor of GSI ###########
 
+
+
+######## WET WEIGHT as predictor of GSI ###########
+
+
+
+######## TOTAL LENGTH as predictor of GONAD WEIGHT ###########
+
+
+
+######## WET WEIGHT as predictor of GONAD WEIGHT ###########
 
 
 
