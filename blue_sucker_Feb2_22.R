@@ -27,6 +27,8 @@ blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>%
   #simplifying the total eggs so the computer doesn't have to make such large calculations
   #centering the length, standardizing the length, standardizing the weight
 
+###### Graphing the data #######
+
 d <- blue_sucker_2021_data #simplifying what it's called.
   
 LengthsWeights <- d %>% 
@@ -87,6 +89,8 @@ ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=75
        units = "in")
 
 
+##### some tests #####
+
 # length as predictor of gsi
 get_prior(gsi ~ length_s + length_s*lab_sex + (1|fish_id), 
           data = d,
@@ -127,8 +131,9 @@ pp_check(weight_gaus, type="stat_grouped", group="lab_sex")
 bayes_R2(weight_gaus)
 
 
-# What is fecundity?
-## Fecundity is the number of eggs a female fish will lay in a spawning season.
+###### What is fecundity? ######
+
+# Fecundity is the number of eggs a female fish will lay in a spawning season.
 
 ###### 6 DIFFERENT MODELS ######
 
@@ -250,7 +255,7 @@ cond_effect_weight$weight_s %>%
 
 cond_data_weight <- weight_bsr_negbinom$data %>% distinct(weight_s, combined_egg_total)
 
-posts_weight <- add_epred_draws(weight_bsr_negbinom, newdata= weight_bsr_negbinom$data %>% 
+posts_weight <- add_epred_draws(weight_bsr_negbinom, newdata = weight_bsr_negbinom$data %>% 
                                   distinct(weight_s) , re_formula = NA)
 
 
@@ -304,6 +309,81 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
 
 ######## TOTAL LENGTH as predictor of GSI ###########
 
+# ? #
+# I'm almost there with this one. How do I get it to recognize the two groups? 
+# It comes up as a really squiggly line again
+
+get_prior(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id),
+          data = d,
+          family = gaussian())
+
+gsi_length <- brm(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id), 
+                           data = d,
+                           family = gaussian(),
+                           cores = 1, chains = 4, iter = 5000,
+                           sample_prior = "yes")
+
+plot(conditional_effects(gsi_length, re_formula=NULL), points = T)
+
+pp_check(gsi_length)
+
+cond_effect_gsi_l <- conditional_effects(gsi_length)
+cond_effect_gsi_l$length_s
+
+cond_effect_gsi_l$length_s %>% 
+  ggplot(aes(x=length_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = gsi_length$data, aes(x=length_s, y=gsi))+
+  theme_default()
+
+cond_data_gsi_l <- gsi_length$data %>% distinct(length_s, gsi, fish_id)
+
+posts_gsi_l <- add_epred_draws(gsi_length, newdata= gsi_length$data %>% 
+                                  distinct(length_s, fish_id, lab_sex) , re_formula = NA)
+
+
+posts_gsi_all <- add_predicted_draws(gsi_length, newdata=gsi_length$data %>% 
+                                          distinct(length_s,fish_id,lab_sex) , re_formula = NA)
+
+d_lengthgsi <- d %>% distinct(length_mm, length_s)
+
+PosteriorGSIlength <- posts_gsi_all %>%
+  group_by(length_s, lab_sex) %>% 
+  left_join(d_lengthgsi) %>% 
+  median_qi(.prediction) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x =length_mm, y = .prediction)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker Fecundity Prediction",
+       subtitle="Large grey bar incorporates the variation in individuals",
+       x="Length (mm)",
+       y="Predicted GSI")
+
+# ggsave(PosteriorGSIlength, file = "plots/PosteriorGSIlength.png", dpi = 750, width = 7, height = 5, units = "in")
+
+# This model incorporates all individuals, and not JUST the mean. 
+
+PosteriorGSIlengthMean <- posts_gsi_l %>%
+  group_by(length_s) %>% 
+  left_join(d_lengthgsi) %>% 
+  median_qi(.epred) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker Mean Fecundity Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean egg count",
+       x="length (mm)",
+       y="Predicted GSI")
+
+#  ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
 
 
 ######## WET WEIGHT as predictor of GSI ###########
