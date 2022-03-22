@@ -199,7 +199,7 @@ cond_effect_weight$weight_s %>%
 cond_data_weight <- weight_bsr_negbinom$data %>% distinct(weight_s, combined_egg_total)
 
 posts_weight <- add_epred_draws(weight_bsr_negbinom, newdata= weight_bsr_negbinom$data %>% 
-                                  distinct(weight_s, fish_id), re_formula = NULL)
+                                  distinct(weight_s, fish_id) , re_formula = NULL)
 
 d_weight <- d %>% distinct(weight_g, weight_s)
 
