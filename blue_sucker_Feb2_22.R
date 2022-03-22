@@ -84,6 +84,7 @@ StandardLengthEggTotal <- d %>%
   labs(title="Lengths and estimated total egg counts",
        x="Length (standardized)",
        y= "Estimated egg total")
+#fix y-axis labels to show whole numbers
 
 ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=750,  width = 5, height = 3,
        units = "in")
@@ -103,9 +104,10 @@ O1WeightEgg <- d %>%
   ggplot(aes(x=ovary_1_g, y=o1_average_count)) +
   geom_point() +
   geom_smooth()+
-  labs(title="Ovary 1",
+  labs(title="Ovary one",
        x="Ovary weight (g)",
-       y= "Avg egg count per gram")
+       y= "Avg egg count per gram")+
+  theme_linedraw()
 
 ggsave(O1WeightEgg, file = "plots/O1WeightEgg.png", dpi=750,  width = 5, height = 3,
        units = "in")
@@ -114,9 +116,10 @@ O2WeightEgg <- d %>%
   ggplot(aes(x=ovary_2_g, y=o2_average_count)) +
   geom_point() +
   geom_smooth()+
-  labs(title="Ovary 2",
+  labs(title="Ovary two",
        x="Ovary weight (g)",
-       y= "Avg egg count per gram")
+       y= "Avg egg count per gram")+
+  theme_linedraw()
 
 ggsave(O2WeightEgg, file = "plots/O2WeightEgg.png", dpi=750,  width = 5, height = 3,
        units = "in")
@@ -124,17 +127,18 @@ ggsave(O2WeightEgg, file = "plots/O2WeightEgg.png", dpi=750,  width = 5, height 
 O1 = data.frame(x = d$ovary_1_g,y=d$o1_average_count)
 O2 = data.frame(x = d$ovary_2_g,y=d$o1_average_count)
 
-Ov1Ov2comp <- ggplot(O1,aes(x,y)) + 
-  geom_smooth(color='olivedrab4')+
-  geom_smooth(data=O2,color='dodgerblue3')+
-  geom_point(color='olivedrab4') +
-  geom_point(data=O2,color='dodgerblue3')+
+Ov1Ov2comp <- ggplot(O1,aes(x,y)) +
+  geom_point(alpha=0.6, color='darkolivegreen4') +
+  geom_point(alpha=0.6, data=O2,color='dodgerblue3')+
+  geom_smooth(alpha=0,color='darkolivegreen4')+
+  geom_smooth(data=O2,alpha=0, color='dodgerblue3')+
   xlab("Ovary weight") +
   scale_y_continuous("Average egg count per gram", limits = c(150,350))+
-  scale_color_manual("Ovary", 
-                     breaks = c("Ovary 1", "Ovary 2"), # this isn't working
-                     values = c("olivedrab4", "dodgerblue3"))+
-  labs(title="Comparison of Ovaries 1 (green) and 2 (blue)")
+  # scale_color_manual("Ovary", 
+  #                    breaks = c("Ovary 1", "Ovary 2"), # this isn't working
+  #                    values = c("olivedrab4", "dodgerblue3"))+
+  labs(title="Comparison of ovaries one (green) and two (blue)")+
+  theme_linedraw()
 
 ggsave(Ov1Ov2comp, file = "plots/Ov1Ov2comp.png", dpi=750,  width = 5, height = 3,
        units = "in")
