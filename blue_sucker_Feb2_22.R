@@ -88,6 +88,81 @@ StandardLengthEggTotal <- d %>%
 ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+GonadWeightEgg <- d %>% 
+  ggplot(aes(x=gonad_weight_g, y=combined_egg_total)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="Gonad weight and estimated total egg counts",
+       x="Total Gonad Weight (g)",
+       y= "Estimated Egg Total")
+
+ggsave(GonadWeightEgg, file = "plots/GonadWeightEgg.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+O1WeightEgg <- d %>% 
+  ggplot(aes(x=ovary_1_g, y=o1_average_count)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="Ovary 1",
+       x="Ovary weight (g)",
+       y= "Avg egg count per gram")
+
+ggsave(O1WeightEgg, file = "plots/O1WeightEgg.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+O2WeightEgg <- d %>% 
+  ggplot(aes(x=ovary_2_g, y=o2_average_count)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="Ovary 2",
+       x="Ovary weight (g)",
+       y= "Avg egg count per gram")
+
+ggsave(O2WeightEgg, file = "plots/O2WeightEgg.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+O1 = data.frame(x = d$ovary_1_g,y=d$o1_average_count)
+O2 = data.frame(x = d$ovary_2_g,y=d$o1_average_count)
+
+Ov1Ov2comp <- ggplot(O1,aes(x,y)) + 
+  geom_smooth(color='olivedrab4')+
+  geom_smooth(data=O2,color='dodgerblue3')+
+  geom_point(color='olivedrab4') +
+  geom_point(data=O2,color='dodgerblue3')+
+  xlab("Ovary weight") +
+  scale_y_continuous("Average egg count per gram", limits = c(150,350))+
+  scale_color_manual("Ovary", 
+                     breaks = c("Ovary 1", "Ovary 2"), # this isn't working
+                     values = c("olivedrab4", "dodgerblue3"))+
+  labs(title="Comparison of Ovaries 1 (green) and 2 (blue)")
+
+ggsave(Ov1Ov2comp, file = "plots/Ov1Ov2comp.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+ovary_data <- d %>% 
+  select(ovary_1_g,ovary_2_g,o2_average_count,o1_average_count) %>% 
+  mutate(ovary_diff = ovary_2_g - ovary_1_g,
+         egg_diff = o2_average_count - o1_average_count)
+
+mean(ovary_data$egg_diff, na.rm = TRUE)
+# 2.263158
+mean(ovary_data$ovary_diff, na.rm = TRUE)
+# -1.905789
+
+OvaryDiff <- ovary_data %>% 
+  ggplot(aes(x=ovary_diff, y=egg_diff))+
+  geom_hline(linetype="twodash", yintercept = 2.263158, size=0.7, color="cyan4")+
+  geom_vline(linetype="twodash", xintercept = -1.905789, size=0.7, color="red3")+
+  geom_point(shape=19)+
+  labs(x="Difference in weight between ovaries one and two (g)**",
+       y="Difference in egg count*",
+       caption = "*Mean difference in egg count denoted with blue dashed line
+**Mean difference in ovary weight denoted with red dashed line")+
+  theme_linedraw()+
+  theme(plot.caption = element_text(hjust = 0))
+
+ggsave(OvaryDiff, file = "plots/OvaryDiff.png", dpi=750,  width = 5, height = 3,
+       units = "in")
 
 ##### some tests #####
 
@@ -205,9 +280,7 @@ PosteriorLength <- posts_length_all %>%
 ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
        units = "in")
 
-# This model incorporates all individuals, and not JUST the mean. We would not be surprised
-# to see any range of egg counts for an individual of 700 mm length (for example), to be between
-# ~70,000 and ~130,000 eggs. For the mean variation:
+# This model incorporates all individuals, and not JUST the mean.
 
 PosteriorLengthMean <- posts_length %>%
   group_by(length_s) %>% 
@@ -309,9 +382,6 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
 
 ######## TOTAL LENGTH as predictor of GSI ###########
 
-# ? #
-# I'm almost there with this one. How do I get it to recognize the two groups? 
-# It comes up as a really squiggly line again
 
 get_prior(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id),
           data = d,
@@ -347,6 +417,10 @@ posts_gsi_all <- add_predicted_draws(gsi_length, newdata=gsi_length$data %>%
 
 d_lengthgsi <- d %>% distinct(length_mm, length_s)
 
+# ? #
+# I'm almost there with this one. How do I get it to recognize the two groups? 
+# It comes up as a really squiggly line again
+
 PosteriorGSIlength <- posts_gsi_all %>%
   group_by(length_s, lab_sex) %>% 
   left_join(d_lengthgsi) %>% 
@@ -358,7 +432,7 @@ PosteriorGSIlength <- posts_gsi_all %>%
               alpha = 0.2) +
   geom_point(data = d, 
              aes(y = gsi)) +
-  labs(title= "Blue Sucker Fecundity Prediction",
+  labs(title= "Blue Sucker GSI Prediction",
        subtitle="Large grey bar incorporates the variation in individuals",
        x="Length (mm)",
        y="Predicted GSI")
@@ -378,8 +452,8 @@ PosteriorGSIlengthMean <- posts_gsi_l %>%
               alpha = 0.2) +
   geom_point(data = d, 
              aes(y = gsi)) +
-  labs(title= "Blue Sucker Mean Fecundity Prediction",
-       subtitle="Grey bar incorporates only the variation in the mean egg count",
+  labs(title= "Blue Sucker Mean GSI Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean GSI",
        x="length (mm)",
        y="Predicted GSI")
 
@@ -388,10 +462,94 @@ PosteriorGSIlengthMean <- posts_gsi_l %>%
 
 ######## WET WEIGHT as predictor of GSI ###########
 
-
+# I won't start this one until I figure out what's wrong with the length/gsi model.
 
 ######## TOTAL LENGTH as predictor of GONAD WEIGHT ###########
 
+get_prior(gonad_weight_g ~ length_s + I(length_s^2) + (1|fish_id), 
+          data = d,
+          family = gaussian())
+
+
+length_gonad_weight <- brm(gonad_weight_g ~ length_s + I(length_s^2) + (1|fish_id), 
+                           data = d,
+                           family = gaussian(),
+                           cores = 1, chains = 1, iter = 1000,
+                           sample_prior = "yes",
+                           file="models/length_gonad_weight.rds",
+                           file_refit = "on_change")
+
+plot(conditional_effects(length_gonad_weight, re_formula = NULL), points = T)
+
+length_bsr_negbinom
+plot(conditional_effects(length_bsr_negbinom), points = T)
+
+pp_check(length_bsr_negbinom)
+pp_check(length_bsr_negbinom, type = "hist")
+
+saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
+
+as_draws_df(length_bsr_negbinom)
+
+cond_effect_length <- conditional_effects(length_bsr_negbinom)
+cond_effect_length$length_s
+
+cond_effect_length$lenth_s %>% 
+  ggplot(aes(x=length_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = length_bsr_negbinom$data, aes(x=length_s, y=combined_egg_total))+
+  theme_default()
+
+cond_data_length <- length_bsr_negbinom$data %>% distinct(length_s, combined_egg_total)
+
+posts_length <- add_epred_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
+                                  distinct(length_s) , re_formula = NA)
+
+
+posts_length_all <- add_predicted_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
+                                          distinct(length_s) , re_formula = NA)
+
+d_length <- d %>% distinct(length_mm, length_s)
+
+PosteriorLength <- posts_length_all %>%
+  group_by(length_s) %>% 
+  left_join(d_length) %>% 
+  median_qi(.prediction) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .prediction)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Fecundity Prediction",
+       subtitle="Large grey bar incorporates the variation in individuals",
+       x="Length (mm)",
+       y="Predicted total egg count")
+
+ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
+       units = "in")
+
+# This model incorporates all individuals, and not JUST the mean.
+
+PosteriorLengthMean <- posts_length %>%
+  group_by(length_s) %>% 
+  left_join(d_length) %>% 
+  median_qi(.epred) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = combined_egg_total)) +
+  labs(title= "Blue Sucker Mean Fecundity Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean egg count",
+       x="Length (mm)",
+       y="Predicted total egg count")
+
+ggsave(PosteriorLengthMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
+       units = "in")
 
 
 ######## WET WEIGHT as predictor of GONAD WEIGHT ###########
@@ -400,17 +558,6 @@ PosteriorGSIlengthMean <- posts_gsi_l %>%
 
 
 
-# GSI gaus?
-gsi_length_negbinom <- brm(gsi ~ length_s + length_s*lab_sex + I(length_s^2)+ (1|fish_id), 
-                   data = d,
-                   family = gaussian(),
-                   cores = 1, chains = 1, iter = 5000,
-                   sample_prior = "yes")
-# ,
-#                    file="models/gsi_length_gaus.rds",
-#                    file_refit = "on_change")
-
-plot(conditional_effects(gsi_length_gaus), points = T)
 
 
 
@@ -427,10 +574,7 @@ plot(conditional_effects(gsi_length_gaus), points = T)
 
 
 
-
-
-
-
+###### Random other stuff ######
 
 # #simplified egg count
 # eggs_gaus <- brm(egg_total_simplified ~ length_s + (1|fish_id), 
@@ -504,7 +648,7 @@ plot(conditional_effects(gsi_length_gaus), points = T)
 # 
 # 
 # 
-# ############ Working in class ###################
+# Working in class
 # 
 # # Simulating Weight and Length #
 # 
