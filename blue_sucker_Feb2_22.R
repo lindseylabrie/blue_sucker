@@ -44,6 +44,31 @@ ggplot(aes(x=length_mm, y=weight_g, color=lab_sex)) +
 ggsave(LengthsWeights, file = "plots/LengthsWeighs.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Gonad weight and length for both sexes: 
+
+GonadWeightsLengths <- d %>% 
+  ggplot(aes(x=length_mm, y=gonad_weight_g, color=lab_sex)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="Lengths and Gonad Weights by Sex, 2021",
+       x="Length (mm)",
+       y= "Gonad Weight (g)")
+
+ggsave(GonadLengthsWeights, file = "plots/GonadLengthsWeights.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
+# Gonad weight and wet weight for both sexes:
+GonadWeightsWet <- d %>% 
+  ggplot(aes(x=weight_g, y=gonad_weight_g, color=lab_sex)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="Wet Weight and Gonad Weights by Sex, 2021",
+       x="Wet weight (g)",
+       y= "Gonad Weight (g)")
+
+ggsave(GonadWeightsWet, file = "plots/GonadWeightsWet.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
 # Weight and GSI for both sexes
 
 WeightGSI <- d %>% 
@@ -310,7 +335,7 @@ PosteriorLength <- posts_length_all %>%
        x="Length (mm)",
        y="Predicted total egg count")
 
-ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
+ggsave(PosteriorLength, file = "plots/PosteriorLength.png", dpi = 750, width = 7, height = 5,
        units = "in")
 # This model incorporates all individuals, and not JUST the mean.
 
@@ -330,7 +355,7 @@ PosteriorLengthMean <- posts_length %>%
        x="Length (mm)",
        y="Predicted total egg count")
 
-ggsave(PosteriorLengthMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
+ggsave(PosteriorLengthMean, file = "plots/PosteriorLengthMean.png", dpi = 750, width = 7, height = 5,
        units = "in")
 
 
@@ -565,60 +590,60 @@ PosteriorGSIweightMean <- posts_gsi_w %>%
        y="Predicted GSI")
 # now it's saying that "lab_sex" cant be found
 
-# ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
+# ggsave(PosteriorGSIweightMean, file = "plots/PosteriorGSIweightMean.png", dpi = 750, width = 7, height = 5, units = "in")
 
 
 
 ######## TOTAL LENGTH as predictor of GONAD WEIGHT ###########
 
-get_prior(gonad_weight_g ~ length_s + I(length_s^2) + (1|fish_id), 
+get_prior(gonad_weight_g ~ length_s*lab_sex + length_s + I(length_s^2) + (1|fish_id), 
           data = d,
           family = gaussian())
 
 
-length_gonad_weight <- brm(gonad_weight_g ~ lab_sex + length_s + I(length_s^2) + (1|fish_id), 
+length_gonad_weight <- brm(gonad_weight_g ~ length_s*lab_sex + length_s + I(length_s^2) + (1|fish_id), 
                            data = d,
                            family = gaussian(),
-                           cores = 1, chains = 1, iter = 1000,
-                           sample_prior = "yes",
-                           file="models/length_gonad_weight.rds",
-                           file_refit = "on_change")
+                           cores = 4, chains = 4, iter = 7500,
+                           sample_prior = "yes")
+                           # file="models/length_gonad_weight.rds",
+                           # file_refit = "on_change")
 
 plot(conditional_effects(length_gonad_weight, re_formula = NULL), points = T)
 
-length_bsr_negbinom
-plot(conditional_effects(length_bsr_negbinom), points = T)
+length_gonad_weight
+plot(conditional_effects(length_gonad_weight), points = T)
 
-pp_check(length_bsr_negbinom)
-pp_check(length_bsr_negbinom, type = "hist")
+pp_check(length_gonad_weight)
+pp_check(length_gonad_weight, type = "hist")
 
-saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
+saveRDS(length_gonad_weight, "models/length_gonad_weight.rds")
 
-as_draws_df(length_bsr_negbinom)
+as_draws_df(length_gonad_weight)
 
-cond_effect_length <- conditional_effects(length_bsr_negbinom)
-cond_effect_length$length_s
+cond_effect_gonadwlength <- conditional_effects(length_gonad_weight)
+cond_effect_gonadwlength$length_s
 
-cond_effect_length$lenth_s %>% 
+cond_effect_gonadwlength$length_s %>% 
   ggplot(aes(x=length_s)) +
   geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
-  geom_point(data = length_bsr_negbinom$data, aes(x=length_s, y=combined_egg_total))+
+  geom_point(data = length_gonad_weight$data, aes(x=length_s, y=gonad_weight_g))+
   theme_default()
 
-cond_data_length <- length_bsr_negbinom$data %>% distinct(length_s, combined_egg_total)
+cond_data_gonadwlength <- length_gonad_weight$data %>% distinct(length_s, gonad_weight_g)
 
-posts_length <- add_epred_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
-                                  distinct(length_s) , re_formula = NA)
+posts_gonadwlength <- add_epred_draws(length_gonad_weight, newdata= length_gonad_weight$data %>% 
+                                  distinct(length_s, lab_sex) , re_formula = NA)
 
 
-posts_length_all <- add_predicted_draws(length_bsr_negbinom, newdata= length_bsr_negbinom$data %>% 
-                                          distinct(length_s) , re_formula = NA)
+posts_length_gonadw <- add_predicted_draws(length_gonad_weight, newdata= length_gonad_weight$data %>% 
+                                          distinct(length_s, lab_sex) , re_formula = NA)
 
-d_length <- d %>% distinct(length_mm, length_s)
+d_lengthgonadw <- d %>% distinct(length_mm, length_s,gonad_weight_g)
 
-PosteriorLength <- posts_length_all %>%
+PosteriorLengthGonadW <- posts_length_gonadw %>%
   group_by(length_s) %>% 
-  left_join(d_length) %>% 
+  left_join(d_lengthgonadw) %>% 
   median_qi(.prediction) %>% 
   mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
   ggplot(aes(x = length_mm, y = .prediction)) +
@@ -626,18 +651,18 @@ PosteriorLength <- posts_length_all %>%
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
   geom_point(data = d, 
-             aes(y = combined_egg_total)) +
-  labs(title= "Blue Sucker Fecundity Prediction",
+             aes(y = gonad_weight_g)) +
+  labs(title= "Blue Sucker Gonad Weights and Lengths",
        subtitle="Large grey bar incorporates the variation in individuals",
        x="Length (mm)",
-       y="Predicted total egg count")
+       y="Predicted gonad weight")
 
-ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
+ggsave(PosteriorLengthGonadW, file = "plots/PosteriorLengthGonadW.png", dpi = 750, width = 7, height = 5,
        units = "in")
-
 # This model incorporates all individuals, and not JUST the mean.
+# need to get it to recognize the different sexes.
 
-PosteriorLengthMean <- posts_length %>%
+PosteriorLengthGonadWMean <- posts_gonadwlength %>%
   group_by(length_s) %>% 
   left_join(d_length) %>% 
   median_qi(.epred) %>% 
@@ -647,18 +672,104 @@ PosteriorLengthMean <- posts_length %>%
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
   geom_point(data = d, 
-             aes(y = combined_egg_total)) +
-  labs(title= "Blue Sucker Mean Fecundity Prediction",
-       subtitle="Grey bar incorporates only the variation in the mean egg count",
+             aes(y = gonad_weight_g)) +
+  labs(title= "Blue Sucker Gonad Weights and Lengths",
+       subtitle="Grey bar incorporates only the variation in the mean gonad weight",
        x="Length (mm)",
-       y="Predicted total egg count")
+       y="Predicted total gonad weight")
 
-ggsave(PosteriorLengthMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
+ggsave(PosteriorLengthGonadWMean, file = "plots/PosteriorLengthGonadWMean.png", dpi = 750, width = 7, height = 5,
        units = "in")
 
 
 ######## WET WEIGHT as predictor of GONAD WEIGHT ###########
 
+get_prior(gonad_weight_g ~ weight_s*lab_sex + weight_s + (1|fish_id), 
+          data = d,
+          family = gaussian())
+
+
+weight_gonad_weight <- brm(gonad_weight_g ~  weight_s*lab_sex + weight_s + (1|fish_id), 
+                           data = d,
+                           family = gaussian(),
+                           cores = 4, chains = 4, iter = 7500,
+                           sample_prior = "yes")
+# file="models/weight_gonad_weight.rds",
+# file_refit = "on_change")
+
+plot(conditional_effects(weight_gonad_weight, re_formula = NULL), points = T)
+
+weight_gonad_weight
+plot(conditional_effects(weight_gonad_weight), points = T)
+
+pp_check(weight_gonad_weight)
+pp_check(weight_gonad_weight, type = "hist")
+
+saveRDS(weight_gonad_weight, "models/weight_gonad_weight.rds")
+
+as_draws_df(weight_gonad_weight)
+
+cond_effect_weightgonadw <- conditional_effects(weight_gonad_weight)
+cond_effect_weightgonadw$weight_s
+
+cond_effect_weightgonadw$weight_s %>% 
+  ggplot(aes(x=weight_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = weight_gonad_weight$data, aes(x=weight_s, y=gonad_weight_g))+
+  theme_default()
+
+cond_data_weightgonadw <- weight_gonad_weight$data %>% distinct(weight_s, gonad_weight_g, weight_g)
+
+posts_weightgonadw <- add_epred_draws(weight_gonad_weight, newdata= weight_gonad_weight$data %>% 
+                                        distinct(weight_s, lab_sex) , re_formula = NA)
+
+
+posts_weight_gonadw <- add_predicted_draws(weight_gonad_weight, newdata= weight_gonad_weight$data %>% 
+                                             distinct(weight_s, lab_sex) , re_formula = NA)
+
+d_weightgonadw <- d %>% distinct(weight_g, weight_s,gonad_weight_g)
+
+PosteriorWeightGonadW <- posts_weight_gonadw %>%
+  group_by(weight_s) %>% 
+  left_join(d_weightgonadw) %>% 
+  median_qi(.prediction) %>% 
+  mutate(length_mm = (weight_s*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x = weight_g, y = .prediction)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gonad_weight_g)) +
+  labs(title= "Blue Sucker Gonad Weights and Lengths",
+       subtitle="Large grey bar incorporates the variation in individuals",
+       x="Length (mm)",
+       y="Predicted gonad weight")
+# now it says weight_g can't be found
+
+
+ggsave(PosteriorLengthGonadW, file = "plots/PosteriorWeightGonadW.png", dpi = 750, width = 7, height = 5,
+       units = "in")
+# This model incorporates all individuals, and not JUST the mean.
+# need to get it to recognize the different sexes.
+
+PosteriorWeightGonadWMean <- posts_gonadwlength %>%
+  group_by(weight_s) %>% 
+  left_join(d_weightgonadw) %>% 
+  median_qi(.epred) %>% 
+  mutate(weight_g = (weight_g*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x = weight_g, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gonad_weight_g)) +
+  labs(title= "Blue Sucker Gonad Weights and Wet Weight",
+       subtitle="Grey bar incorporates only the variation in the mean gonad weight",
+       x="Wet weight (g)",
+       y="Predicted total gonad weight")
+
+ggsave(PosteriorLengthGonadWMean, file = "plots/PosteriorLengthGonadWMean.png", dpi = 750, width = 7, height = 5,
+       units = "in")
 
 
 
