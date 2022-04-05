@@ -27,7 +27,7 @@ blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>%
   #simplifying the total eggs so the computer doesn't have to make such large calculations
   #centering the length, standardizing the length, standardizing the weight
 
-###### Graphing the data #######
+###### Graphing, visualizing the raw data #######
 
 d <- blue_sucker_2021_data #simplifying what it's called.
   
@@ -215,6 +215,12 @@ bayes_R2(weight_gaus)
 # Fecundity is the number of eggs a female fish will lay in a spawning season.
 
 ###### 6 DIFFERENT MODELS ######
+# 1) TOTAL LENGTH as predictor of TOTAL EGG COUNT
+# 2) WET WEIGHT as predictor of TOTAL EGG COUNT
+# 3) TOTAL LENGTH as predictor of GSI
+# 4) WET WEIGHT as predictor of GSI
+# 5) TOTAL LENGTH as predictor of GONAD WEIGHT
+# 6) WET WEIGHT as predictor of GONAD WEIGHT
 
 ######## TOTAL LENGTH as predictor of TOTAL EGG COUNT ###########
 
@@ -430,14 +436,14 @@ PosteriorGSIlength <- posts_gsi_all %>%
   left_join(d_lengthgsi) %>% 
   median_qi(.prediction) %>% 
   mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
-  ggplot(aes(x =length_mm, y = .prediction)) +
+  ggplot(aes(x =length_mm, y = .prediction, fill = lab_sex)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
   geom_point(data = d, 
              aes(y = gsi)) +
   labs(title= "Blue Sucker GSI Prediction",
-       subtitle="Large grey bar incorporates the variation in individuals",
+       subtitle="Blue and pink bars incorporate the variation in individuals",
        x="Length (mm)",
        y="Predicted GSI")
 
@@ -445,12 +451,12 @@ PosteriorGSIlength <- posts_gsi_all %>%
 
 # This model incorporates all individuals, and not JUST the mean. 
 
-PosteriorGSIlengthMean <- posts_gsi_l %>%
-  group_by(length_s) %>% 
+PosteriorGSIlengthMean <- posts_gsi_all %>%
+  group_by(lab_sex) %>% 
   left_join(d_lengthgsi) %>% 
   median_qi(.epred) %>% 
   mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
-  ggplot(aes(x = length_mm, y = .epred)) +
+  ggplot(aes(x = length_mm, y = .epred, fill = lab_sex)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
@@ -460,6 +466,8 @@ PosteriorGSIlengthMean <- posts_gsi_l %>%
        subtitle="Grey bar incorporates only the variation in the mean GSI",
        x="length (mm)",
        y="Predicted GSI")
+
+# not sure what I did wrong there ^, but it keeps saying '.epred' cannot be found
 
 #  ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
 
@@ -475,7 +483,7 @@ get_prior(gonad_weight_g ~ length_s + I(length_s^2) + (1|fish_id),
           family = gaussian())
 
 
-length_gonad_weight <- brm(gonad_weight_g ~ length_s + I(length_s^2) + (1|fish_id), 
+length_gonad_weight <- brm(gonad_weight_g ~ lab_sex + length_s + I(length_s^2) + (1|fish_id), 
                            data = d,
                            family = gaussian(),
                            cores = 1, chains = 1, iter = 1000,
