@@ -27,10 +27,12 @@ blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>%
   #simplifying the total eggs so the computer doesn't have to make such large calculations
   #centering the length, standardizing the length, standardizing the weight
 
-###### Graphing, visualizing the raw data #######
+###### Graphing, visualizing the RAW data #######
 
 d <- blue_sucker_2021_data #simplifying what it's called.
-  
+
+# Lengths and weights for both sexes: 
+
 LengthsWeights <- d %>% 
 ggplot(aes(x=length_mm, y=weight_g, color=lab_sex)) +
   geom_point() +
@@ -42,6 +44,7 @@ ggplot(aes(x=length_mm, y=weight_g, color=lab_sex)) +
 ggsave(LengthsWeights, file = "plots/LengthsWeighs.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Weight and GSI for both sexes
 
 WeightGSI <- d %>% 
   ggplot(aes(x=weight_g, y=gsi, color=lab_sex)) +
@@ -54,6 +57,8 @@ WeightGSI <- d %>%
 ggsave(WeightGSI, file = "plots/WeightGSI.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Length and GSI for both sexes
+
 LengthGSI <- d %>% 
   ggplot(aes(x=length_mm, y=gsi, color=lab_sex)) +
   geom_point() +
@@ -64,6 +69,8 @@ LengthGSI <- d %>%
 
 ggsave(LengthGSI, file = "plots/LengthGSI.png", dpi=750,  width = 5, height = 3,
        units = "in")
+
+# Standardized length and GSI for both sexes
 
 StandardLengthGSI <- d %>% 
   ggplot(aes(x=length_s, y=gsi, color=lab_sex)) +
@@ -77,28 +84,34 @@ StandardLengthGSI <- d %>%
 ggsave(StandardLengthGSI, file = "plots/StandardLengthGSI.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Standard length and estimated egg total based on rounded approximations of egg counts
+
 StandardLengthEggTotal <- d %>% 
   ggplot(aes(x=length_s, y=combined_egg_total)) +
   geom_point() +
   geom_smooth()+
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
   labs(title="Lengths and estimated total egg counts",
        x="Length (standardized)",
        y= "Estimated egg total")
-#fix y-axis labels to show whole numbers
 
 ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=750,  width = 5, height = 3,
        units = "in")
+
+# Egg total vs gonad weight of both ovaries combined
 
 GonadWeightEgg <- d %>% 
   ggplot(aes(x=gonad_weight_g, y=combined_egg_total)) +
   geom_point() +
   geom_smooth()+
-  labs(title="Gonad weight and estimated total egg counts",
+  labs(title="Combined ovary weight and estimated total egg counts",
        x="Total Gonad Weight (g)",
        y= "Estimated Egg Total")
 
 ggsave(GonadWeightEgg, file = "plots/GonadWeightEgg.png", dpi=750,  width = 5, height = 3,
        units = "in")
+
+# Weight vs egg count per gram in ovary 1
 
 O1WeightEgg <- d %>% 
   ggplot(aes(x=ovary_1_g, y=o1_average_count)) +
@@ -112,6 +125,8 @@ O1WeightEgg <- d %>%
 ggsave(O1WeightEgg, file = "plots/O1WeightEgg.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Weight vs egg count per gram in ovary 2
+
 O2WeightEgg <- d %>% 
   ggplot(aes(x=ovary_2_g, y=o2_average_count)) +
   geom_point() +
@@ -124,6 +139,9 @@ O2WeightEgg <- d %>%
 ggsave(O2WeightEgg, file = "plots/O2WeightEgg.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Checking to see if the ovaries have a bias of some sort in terms of measuring eggs
+# need to fix this probably
+
 O1 = data.frame(x = d$ovary_1_g,y=d$o1_average_count)
 O2 = data.frame(x = d$ovary_2_g,y=d$o1_average_count)
 
@@ -134,17 +152,17 @@ Ov1Ov2comp <- ggplot(O1,aes(x,y)) +
   geom_smooth(data=O2,alpha=0, color='dodgerblue3')+
   xlab("Ovary weight") +
   scale_y_continuous("Average egg count per gram", limits = c(150,350))+
-  # scale_color_manual("Ovary", 
-  #                    breaks = c("Ovary 1", "Ovary 2"), # this isn't working
-  #                    values = c("olivedrab4", "dodgerblue3"))+
   labs(title="Comparison of ovaries one (green) and two (blue)")+
   theme_linedraw()
+
+# HOW to make the dots line up based on individuals (i.e. do the individuals have 
+# differences in ovary 1 vs ovary 2)?
 
 ggsave(Ov1Ov2comp, file = "plots/Ov1Ov2comp.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
 ovary_data <- d %>% 
-  select(ovary_1_g,ovary_2_g,o2_average_count,o1_average_count) %>% 
+  select(fish_id, ovary_1_g,ovary_2_g,o2_average_count,o1_average_count) %>% 
   mutate(ovary_diff = ovary_2_g - ovary_1_g,
          egg_diff = o2_average_count - o1_average_count)
 
@@ -152,6 +170,8 @@ mean(ovary_data$egg_diff, na.rm = TRUE)
 # 2.263158
 mean(ovary_data$ovary_diff, na.rm = TRUE)
 # -1.905789
+
+# Showing the difference between ovaries
 
 OvaryDiff <- ovary_data %>% 
   ggplot(aes(x=ovary_diff, y=egg_diff))+
@@ -168,7 +188,7 @@ OvaryDiff <- ovary_data %>%
 ggsave(OvaryDiff, file = "plots/OvaryDiff.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
-##### some tests #####
+##### some prelimiary tests, can pretty much ignore these #####
 
 # length as predictor of gsi
 get_prior(gsi ~ length_s + length_s*lab_sex + (1|fish_id), 
@@ -224,11 +244,12 @@ bayes_R2(weight_gaus)
 
 ######## TOTAL LENGTH as predictor of TOTAL EGG COUNT ###########
 
+# getting priors
 get_prior(egg_total_simplified ~ length_s + I(length_s^2) + (1|fish_id), 
            data = d,
            family = negbinomial(link="log"))
 
-
+# making my model
 length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2) + (1|fish_id), 
                            data = d,
                            family = negbinomial(link="log"),
@@ -239,9 +260,9 @@ length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2) + (1|fi
                            file="models/length_bsr_negbinom.rds",
                            file_refit = "on_change")
 
+# conditional effects, taking all individuals into account
 plot(conditional_effects(length_bsr_negbinom, re_formula = NULL), points = T)
-
-length_bsr_negbinom
+# conditional effects, showing the mean difference
 plot(conditional_effects(length_bsr_negbinom), points = T)
 
 pp_check(length_bsr_negbinom)
@@ -249,6 +270,7 @@ pp_check(length_bsr_negbinom, type = "hist")
 
 saveRDS(length_bsr_negbinom, "models/length_bsr_negbinom.rds")
 
+# conditional effects, manual plotting
 as_draws_df(length_bsr_negbinom)
 
 cond_effect_length <- conditional_effects(length_bsr_negbinom)
@@ -259,6 +281,7 @@ cond_effect_length$lenth_s %>%
   geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
   geom_point(data = length_bsr_negbinom$data, aes(x=length_s, y=combined_egg_total))+
   theme_default()
+# it keeps saying "estimate__ not found"
 
 cond_data_length <- length_bsr_negbinom$data %>% distinct(length_s, combined_egg_total)
 
@@ -289,7 +312,6 @@ PosteriorLength <- posts_length_all %>%
 
 ggsave(PosteriorLength, file = "plots/PosteriorWeight.png", dpi = 750, width = 7, height = 5,
        units = "in")
-
 # This model incorporates all individuals, and not JUST the mean.
 
 PosteriorLengthMean <- posts_length %>%
@@ -310,6 +332,8 @@ PosteriorLengthMean <- posts_length %>%
 
 ggsave(PosteriorLengthMean, file = "plots/PosteriorWeightMean.png", dpi = 750, width = 7, height = 5,
        units = "in")
+
+
 
 ######### WET WEIGHT as predictor of TOTAL EGG COUNT ########## 
 
@@ -368,7 +392,7 @@ ggsave(PosteriorWeight, file = "plots/PosteriorWeight.png", dpi = 750, width = 7
 
 # This model incorporates all individuals, and not JUST the mean. We would not be surprised
 # to see any range of egg counts for an individual weighing (for example) 3000 g, to be between
-# ~75,000 and ~130,000 eggs. For the mean variation:
+# ~75,000 and ~130,000 eggs. For the MEAN variation:
 
 PosteriorWeightMean <- posts_weight %>%
   group_by(weight_s) %>% 
@@ -382,7 +406,7 @@ PosteriorWeightMean <- posts_weight %>%
   geom_point(data = d, 
              aes(y = combined_egg_total)) +
   labs(title= "Blue Sucker Mean Fecundity Prediction",
-       subtitle="Grey bar incorporates only the variation in the mean egg count",
+       subtitle="Grey bar incorporates only the variation in the MEAN egg count",
        x="Weight (g)",
        y="Predicted total egg count")
 
@@ -390,8 +414,9 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
        units = "in")
 
 
-######## TOTAL LENGTH as predictor of GSI ###########
 
+
+######## TOTAL LENGTH as predictor of GSI ###########
 
 get_prior(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id),
           data = d,
@@ -400,11 +425,12 @@ get_prior(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id),
 gsi_length <- brm(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id), 
                            data = d,
                            family = gaussian(),
-                           cores = 1, chains = 4, iter = 5000,
+                           cores = 4, chains = 4, iter = 7500,
                            sample_prior = "yes")
 
 plot(conditional_effects(gsi_length, re_formula=NULL), points = T)
 
+gsi_length
 pp_check(gsi_length)
 
 cond_effect_gsi_l <- conditional_effects(gsi_length)
@@ -427,10 +453,6 @@ posts_gsi_all <- add_predicted_draws(gsi_length, newdata=gsi_length$data %>%
 
 d_lengthgsi <- d %>% distinct(length_mm, length_s)
 
-# ? #
-# I'm almost there with this one. How do I get it to recognize the two groups? 
-# It comes up as a really squiggly line again
-
 PosteriorGSIlength <- posts_gsi_all %>%
   group_by(length_s, lab_sex) %>% 
   left_join(d_lengthgsi) %>% 
@@ -447,16 +469,15 @@ PosteriorGSIlength <- posts_gsi_all %>%
        x="Length (mm)",
        y="Predicted GSI")
 
-# ggsave(PosteriorGSIlength, file = "plots/PosteriorGSIlength.png", dpi = 750, width = 7, height = 5, units = "in")
+ggsave(PosteriorGSIlength, file = "plots/PosteriorGSIlength.png", dpi = 750, width = 7, height = 5, units = "in")
+# This model incorporates all individuals, and not JUST the mean. I LOVE the way this one looks.
 
-# This model incorporates all individuals, and not JUST the mean. 
-
-PosteriorGSIlengthMean <- posts_gsi_all %>%
-  group_by(lab_sex) %>% 
+PosteriorGSIlengthMean <- posts_gsi_l %>%
+  group_by(length_s) %>% 
   left_join(d_lengthgsi) %>% 
   median_qi(.epred) %>% 
   mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
-  ggplot(aes(x = length_mm, y = .epred, fill = lab_sex)) +
+  ggplot(aes(x = length_mm, y = .epred)) +
   geom_line() +
   geom_ribbon(aes(ymin = .lower, ymax = .upper),
               alpha = 0.2) +
@@ -466,15 +487,87 @@ PosteriorGSIlengthMean <- posts_gsi_all %>%
        subtitle="Grey bar incorporates only the variation in the mean GSI",
        x="length (mm)",
        y="Predicted GSI")
+# now it's saying that "lab_sex" cant be found
 
-# not sure what I did wrong there ^, but it keeps saying '.epred' cannot be found
-
-#  ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
+# ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
 
 
 ######## WET WEIGHT as predictor of GSI ###########
 
-# I won't start this one until I figure out what's wrong with the length/gsi model.
+get_prior(gsi ~ weight_s*lab_sex + I(weight_s^2) + (1|fish_id),
+          data = d,
+          family = gaussian())
+
+gsi_weight <- brm(gsi ~ weight_s*lab_sex + I(weight_s^2) + (1|fish_id), 
+                  data = d,
+                  family = gaussian(),
+                  cores = 4, chains = 4, iter = 7500,
+                  sample_prior = "yes")
+
+plot(conditional_effects(gsi_weight, re_formula=NULL), points = T)
+
+gsi_weight
+pp_check(gsi_weight)
+
+cond_effect_gsi_w <- conditional_effects(gsi_weight)
+cond_effect_gsi_w$weight_s
+
+cond_effect_gsi_w$weight_s %>% 
+  ggplot(aes(x=weight_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = gsi_weight$data, aes(x=weight_s, y=gsi))+
+  theme_default()
+
+cond_data_gsi_w <- gsi_weight$data %>% distinct(weight_s, gsi, fish_id)
+
+posts_gsi_w <- add_epred_draws(gsi_weight, newdata= gsi_weight$data %>% 
+                                 distinct(weight_s, fish_id, lab_sex) , re_formula = NA)
+
+
+posts_gsi_allw <- add_predicted_draws(gsi_weight, newdata=gsi_weight$data %>% 
+                                       distinct(weight_s,fish_id,lab_sex) , re_formula = NA)
+
+d_weightgsi <- d %>% distinct(weight_g, weight_s)
+
+PosteriorGSIweight<- posts_gsi_allw %>%
+  group_by(weight_s, lab_sex) %>% 
+  left_join(d_weightgsi) %>% 
+  median_qi(.prediction) %>% 
+  mutate(weight_g = (weight_s*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x =weight_g, y = .prediction, fill = lab_sex)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker GSI Prediction",
+       subtitle="Blue and pink bars incorporate the variation in individuals",
+       x="Weight (g)",
+       y="Predicted GSI")
+
+ggsave(PosteriorGSIweight, file = "plots/PosteriorGSIweight.png", dpi = 750, width = 7, height = 5, units = "in")
+# This model incorporates all individuals, and not JUST the mean. I LOVE the way this one looks.
+
+PosteriorGSIweightMean <- posts_gsi_w %>%
+  group_by(weight_s) %>% 
+  left_join(d_weightgsi) %>% 
+  median_qi(.epred) %>% 
+  mutate(weight_g = (weight_s*sd(d$weight_g)) + mean(d$weight_g)) %>% 
+  ggplot(aes(x = weight_g, y = .epred), fill=lab_sex) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker Mean GSI Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean GSI",
+       x="length (mm)",
+       y="Predicted GSI")
+# now it's saying that "lab_sex" cant be found
+
+# ggsave(PosteriorGSIlengthMean, file = "plots/PosteriorGSIlengthMean.png", dpi = 750, width = 7, height = 5, units = "in")
+
+
 
 ######## TOTAL LENGTH as predictor of GONAD WEIGHT ###########
 
