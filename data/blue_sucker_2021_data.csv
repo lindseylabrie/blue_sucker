@@ -1,7 +1,7 @@
 ﻿fish_id,tag_id,length_mm,weight_g,standard_weight,relative_weight,fin_ray,otolith,field_sex,lab_sex,pit_tag_nmbr,date,month,gear,location,comments,acoustic_id_nmbr,gonad_weight_g,ovary_1 _g,ovary_2_g,o1_sample_1,o1_sample_2,o1_sample_3,o2_sample_1,o2_sample_2,o2_sample_3,o1_avg_count,o2_avg_count,,
 3,813,669,2779,2908.524,95.54674,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,362.51,193.25,169.26,200,217,201,211,219,238,206,223,,
 4,893,702,2829,3435.113,82.35536,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,342.32,166.33,175.99,212,189,240,184,209,215,214,203,,
-7,1153,748,3583,4277.637,83.76120,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,440.13,221.78,218.35,220,242,33,235,251,250,165,245,,
+7,1153,748,3583,4277.637,83.76120,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,440.13,221.78,218.35,220,242,233,235,251,250,232,245,,
 10,925,629,2153,2350.372,91.60252,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,249.64,123.47,126.17,310,301,289,295,289,292,300,292,,
 11,899,671,2473,2938.685,84.15329,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,NA,NA,286.96,145.82,141.14,202,205,190,188,198,248,199,211,,
 12,850,604,2102,2042.978,102.88903,Y,Y,F,F,NA,3.9.21,march,trammel_nets,james_mo_confluence,threw_out_eggs,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,,

@@ -1,10 +1,14 @@
 # load packages
+library(Matrix)
+library(dbplyr)
 library(tidyverse)
-library(rethinking)
 library(brms)
+library(dplyr)
 library(janitor)
 library(readr)
 library(tidybayes)
+library(ggplot2)
+
 
 blue_sucker_2021_data <- read_csv("data/blue_sucker_2021_data.csv")%>% 
   clean_names()%>% 
@@ -69,6 +73,19 @@ GonadWeightsWet <- d %>%
 ggsave(GonadWeightsWet, file = "plots/GonadWeightsWet.png", dpi=750,  width = 5, height = 3,
        units = "in")
 
+# Weight vs total egg count
+
+WeightEggCount <- d %>% 
+  ggplot(aes(x=weight_s, y=combined_egg_total)) +
+  geom_point() +
+  geom_smooth()+
+  labs(title="combined egg total by Weight (g), 2021",
+       x="Wet Weight (g)",
+       y= "combined egg count")
+
+ggsave(WeightEggCount, file = "plots/WeightEggCount.png", dpi=750,  width = 5, height = 3,
+       units = "in")
+
 # Weight and GSI for both sexes
 
 WeightGSI <- d %>% 
@@ -122,6 +139,15 @@ StandardLengthEggTotal <- d %>%
 
 ggsave(StandardLengthEggTotal, file = "plots/StandardLengthEggTotal.png", dpi=750,  width = 5, height = 3,
        units = "in")
+
+d %>% 
+  ggplot(aes(x=length_mm, y=combined_egg_total)) +
+  geom_point() +
+  geom_smooth()+
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
+  labs(title="Lengths and estimated total egg counts",
+       x="Length (standardized)",
+       y= "Estimated egg total")
 
 # Egg total vs gonad weight of both ovaries combined
 
@@ -192,7 +218,7 @@ ovary_data <- d %>%
          egg_diff = o2_average_count - o1_average_count)
 
 mean(ovary_data$egg_diff, na.rm = TRUE)
-# 2.263158
+# 0.5263158
 mean(ovary_data$ovary_diff, na.rm = TRUE)
 # -1.905789
 
@@ -270,17 +296,35 @@ bayes_R2(weight_gaus)
 ######## TOTAL LENGTH as predictor of TOTAL EGG COUNT ###########
 
 # getting priors
-get_prior(egg_total_simplified ~ length_s + I(length_s^2) + (1|fish_id), 
+get_prior(egg_total_simplified ~ length_s + I(length_s^2), 
            data = d,
            family = negbinomial(link="log"))
 
-# making my model
-length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2) + (1|fish_id), 
+#simulating priors
+priors = tibble(length_beta = rnorm(100, 0.3, 0.15),
+Ilength_beta2 = rnorm(100,-0.15 ,0.05),
+                Intercept = rnorm(100, 11.5, 0.25),
+                iter = 1:100)
+
+prior_sims = priors %>%
+  expand_grid(d %>% distinct(length_s)) %>%
+  mutate(count_sims = Intercept + length_beta*length_s + Ilength_beta2*(length_s^2))
+
+ggplot() +
+  geom_line(data=prior_sims, aes(x = length_s, y = count_sims, group = iter))+
+  geom_point(data=d,aes(x=length_s, y=log(combined_egg_total),color="red"))
+
+# making the model
+# add + (1|year) when we incorporate the new data and a prior for sigma: prior(exponential(1), class="sigma")
+
+length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2), 
                            data = d,
                            family = negbinomial(link="log"),
-                           prior = c(prior(normal(13, 1), class = "Intercept"),
-                                      prior(normal(-2, 3), class = "b", coef="length_s")),
-                           cores = 1, chains = 4, iter = 1000,
+                           prior = c(prior(normal(11.5, 0.25), class = "Intercept"),
+                                     prior(normal(0.2, 0.15), class = "b", coef="length_s"),
+                                     prior(normal(-0.15,0.05), class = "b", coef="Ilength_sE2"),
+                                     prior(exponential(0.1), class = "shape")),
+                           cores = 1, chains = 1, iter = 1000,
                            sample_prior = "yes",
                            file="models/length_bsr_negbinom.rds",
                            file_refit = "on_change")
@@ -289,6 +333,8 @@ length_bsr_negbinom <- brm(combined_egg_total ~ length_s + I(length_s^2) + (1|fi
 plot(conditional_effects(length_bsr_negbinom, re_formula = NULL), points = T)
 # conditional effects, showing the mean difference
 plot(conditional_effects(length_bsr_negbinom), points = T)
+
+summary(length_bsr_negbinom)
 
 pp_check(length_bsr_negbinom)
 pp_check(length_bsr_negbinom, type = "hist")
@@ -339,6 +385,7 @@ ggsave(PosteriorLength, file = "plots/PosteriorLength.png", dpi = 750, width = 7
        units = "in")
 # This model incorporates all individuals, and not JUST the mean.
 
+
 PosteriorLengthMean <- posts_length %>%
   group_by(length_s) %>% 
   left_join(d_length) %>% 
@@ -362,15 +409,32 @@ ggsave(PosteriorLengthMean, file = "plots/PosteriorLengthMean.png", dpi = 750, w
 
 ######### WET WEIGHT as predictor of TOTAL EGG COUNT ########## 
 
-weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s + I(weight_s^2) + (1|fish_id), 
+#prior simulation
+priors = tibble(weight_beta = rnorm(100, 0.25, 0.08),
+                # Iweight_beta2 = rnorm(100,-0.15 ,0.05),
+                Intercept = rnorm(100, 11.25, 0.25),
+                iter = 1:100)
+
+prior_sims = priors %>%
+  expand_grid(d %>% distinct(weight_s)) %>%
+  mutate(count_sims = Intercept + weight_beta*weight_s)
+
+ggplot() +
+  geom_line(data=prior_sims, aes(x = weight_s, y = count_sims, group = iter))+
+  geom_point(data=d,aes(x=weight_s, y=log(combined_egg_total),color="red"))
+
+weight_bsr_negbinom <- brm(combined_egg_total ~ weight_s, 
                            data = d,
                            family = negbinomial(link="log"),
-                           prior = c(prior(normal(13, 5), class = "Intercept"),
-                                     prior(normal(0, 1), class = "b", coef="weight_s")),
+                           prior = c(prior(normal(11.25, 0.25), class = "Intercept"),
+                                     prior(normal(0.25, 0.08), class = "b", coef="weight_s"),
+                                     prior(exponential(0.1), class="shape")),
                            cores = 1, chains = 4, iter = 1000,
-                           sample_prior = "yes",
+                           # sample_prior = "yes",
                            file="models/weight_bsr_negbinom.rds",
                            file_refit = "on_change")
+summary(weight_bsr_negbinom)
+
 weight_bsr_negbinom
 plot(conditional_effects(weight_bsr_negbinom, re_formula=NULL), points = T)
 
@@ -443,14 +507,28 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
 
 ######## TOTAL LENGTH as predictor of GSI ###########
 
-get_prior(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id),
+#prior simulation
+priors = tibble(length_beta = rnorm(100, 0.25, 0.08),
+                # Iweight_beta2 = rnorm(100,-0.15 ,0.05),
+                Intercept = rnorm(100, 11.25, 0.25),
+                iter = 1:100)
+
+prior_sims = priors %>%
+  expand_grid(d %>% distinct(length_s)) %>%
+  mutate(count_sims = Intercept + weight_beta*weight_s)
+
+ggplot() +
+  geom_line(data=prior_sims, aes(x = weight_s, y = count_sims, group = iter))+
+  geom_point(data=d,aes(x=weight_s, y=log(combined_egg_total),color="red"))
+
+get_prior(gsi ~ length_s*lab_sex + I(length_s^2),
           data = d,
           family = gaussian())
 
-gsi_length <- brm(gsi ~ length_s*lab_sex + I(length_s^2) + (1|fish_id), 
+gsi_length <- brm(gsi ~ length_s*lab_sex + I(length_s^2), 
                            data = d,
                            family = gaussian(),
-                           cores = 4, chains = 4, iter = 7500,
+                           cores = 1, chains = 1, iter = 1000,
                            sample_prior = "yes")
 
 plot(conditional_effects(gsi_length, re_formula=NULL), points = T)
