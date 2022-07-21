@@ -506,6 +506,112 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
 
 
 ######## TOTAL LENGTH as predictor of GSI ###########
+#prior simulation
+
+priors = tibble(beta = rnorm(100, 0.5, 0.2),
+                beta2 = rnorm(100,-0.5 ,0.2),
+                Intercept = rnorm(100, 13, 2),
+                beta3 = rnorm(100, -8, 1),
+                beta4 = rnorm(100,-0.4,0.5),
+                beta5 = rnorm(100,0.4, 0.2),
+                iter = 1:100)
+
+prior_sims = priors %>%
+  expand_grid(d %>% distinct(length_s, lab_sex)) %>%
+  expand_grid(sex=c(0,1)) %>%
+  mutate(gsi_sims = Intercept + beta*length_s + beta2*(length_s^2) + beta3*sex+
+           beta4*length_s*sex + beta5*(length_s^2)*sex)
+
+ggplot() +
+  
+  geom_line(data=prior_sims, aes(x = length_s, y = gsi_sims, group = interaction(sex,iter),
+                                 
+                                 color=as.factor(sex)))  #+
+
+#geom_point(data=d,aes(x=length_s, y=gsi,shape=lab_sex))
+
+
+
+get_prior(gsi ~ (length_s + I(length_s^2))*lab_sex,
+          data = d,
+          family = gaussian())
+
+
+
+gsi_length <- brm(gsi ~ (length_s + I(length_s^2)) * lab_sex,
+                  data = d,
+                  family = gaussian(),
+                  prior = c(prior(normal(13,2),class="Intercept"),
+                            prior(normal(-0.5, 0.25), coef ="Ilength_sE2"),
+                            prior(normal(-8, 1), coef = "lab_sexM"),
+                            prior(normal(0.5, 0.25), coef = "length_s"),
+                            prior(normal(0.4, 0.2), coef = "Ilength_sE2:lab_sexM"),
+                            prior(normal(-0.4, 0.2), coef = "length_s:lab_sexM"),
+                            prior(exponential(0.1), class="sigma")),
+                  cores = 4, chains = 1, iter = 1000)
+                  #sample_prior = "only")
+
+summary(gsi_length)
+
+plot(conditional_effects(gsi_length, re_formula=NULL), points = T)
+
+gsi_length
+pp_check(gsi_length)
+
+cond_effect_gsi_l <- conditional_effects(gsi_length)
+cond_effect_gsi_l$length_s
+
+cond_effect_gsi_l$length_s %>% 
+  ggplot(aes(x=length_s)) +
+  geom_pointrange(aes(y=estimate__, ymin=lower__, ymax=upper__))+
+  geom_point(data = gsi_length$data, aes(x=length_s, y=gsi))+
+  theme_default()
+
+cond_data_gsi_l <- gsi_length$data %>% distinct(length_s, gsi, fish_id)
+
+posts_gsi_l <- add_epred_draws(gsi_length, newdata= gsi_length$data %>% 
+                                 distinct(length_s, fish_id, lab_sex) , re_formula = NA)
+
+
+posts_gsi_all <- add_predicted_draws(gsi_length, newdata=gsi_length$data %>% 
+                                       distinct(length_s,fish_id,lab_sex) , re_formula = NA)
+
+d_lengthgsi <- d %>% distinct(length_mm, length_s)
+
+PosteriorGSIlength <- posts_gsi_all %>%
+  group_by(length_s, lab_sex) %>% 
+  left_join(d_lengthgsi) %>% 
+  median_qi(.prediction) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x =length_mm, y = .prediction, fill = lab_sex)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker GSI Prediction",
+       subtitle="Blue and pink bars incorporate the variation in individuals",
+       x="Length (mm)",
+       y="Predicted GSI")
+
+ggsave(PosteriorGSIlength, file = "plots/PosteriorGSIlength.png", dpi = 750, width = 7, height = 5, units = "in")
+# This model incorporates all individuals, and not JUST the mean. I LOVE the way this one looks.
+
+PosteriorGSIlengthMean <- posts_gsi_l %>%
+  group_by(length_s) %>% 
+  left_join(d_lengthgsi) %>% 
+  median_qi(.epred) %>% 
+  mutate(length_mm = (length_s*sd(d$length_mm)) + mean(d$length_mm)) %>% 
+  ggplot(aes(x = length_mm, y = .epred)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper),
+              alpha = 0.2) +
+  geom_point(data = d, 
+             aes(y = gsi)) +
+  labs(title= "Blue Sucker Mean GSI Prediction",
+       subtitle="Grey bar incorporates only the variation in the mean GSI",
+       x="length (mm)",
+       y="Predicted GSI")
 
 #prior simulation
 priors = tibble(beta = rnorm(100, 0.5, 0.2),
