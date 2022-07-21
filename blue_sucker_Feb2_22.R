@@ -508,26 +508,35 @@ ggsave(PosteriorWeightMean, file = "plots/PosteriorWeightMean.png", dpi = 750, w
 ######## TOTAL LENGTH as predictor of GSI ###########
 
 #prior simulation
-priors = tibble(length_beta = rnorm(100, 0.25, 0.08),
-                # Iweight_beta2 = rnorm(100,-0.15 ,0.05),
-                Intercept = rnorm(100, 11.25, 0.25),
+priors = tibble(beta = rnorm(100, 0.5, 0.2),
+                beta2 = rnorm(100,-0.5 ,0.2),
+                Intercept = rnorm(100, 13, 2),
+                beta3 = rnorm(100, -8, 1),
+                beta4 = rnorm(100,-0.4 ,0.5),
+                beta5 = rnorm(100,-0.4 ,0.2),
                 iter = 1:100)
 
 prior_sims = priors %>%
   expand_grid(d %>% distinct(length_s)) %>%
-  mutate(count_sims = Intercept + weight_beta*weight_s)
+  expand_grid(sex=c(0,1)) %>% 
+  # mutate(prior_sexb = case_when(sex == 0 ~ 0,
+  #                              TRUE ~ prior_sex)) %>% 
+  mutate(gsi_sims = Intercept + beta*length_s +beta2*(length_s^2) + beta3*sex)
 
 ggplot() +
-  geom_line(data=prior_sims, aes(x = weight_s, y = count_sims, group = iter))+
-  geom_point(data=d,aes(x=weight_s, y=log(combined_egg_total),color="red"))
+  geom_line(data=prior_sims, aes(x = length_s, y = gsi_sims, group = interaction(sex,iter), 
+                                 color=as.factor(sex)))+
+  geom_point(data=d,aes(x=length_s, y=gsi,shape=lab_sex))
 
-get_prior(gsi ~ length_s*lab_sex + I(length_s^2),
+
+get_prior(gsi ~ length_s + (I(length_s^2))*lab_sex,
           data = d,
           family = gaussian())
 
-gsi_length <- brm(gsi ~ length_s*lab_sex + I(length_s^2), 
+gsi_length <- brm(gsi ~ (length_s + I(length_s^2) + (1 + length_s + I(length_s^2)|lab_sex)), 
                            data = d,
                            family = gaussian(),
+                  piror = c(prior())
                            cores = 1, chains = 1, iter = 1000,
                            sample_prior = "yes")
 
